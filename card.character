@@ -1,0 +1,472 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:rick_and_morty/domain/character.dart';
+import '../../data/api/api_character.dart';
+import 'package:rick_and_morty/presentation/screens/character_details_page.dart';
+
+class Home extends StatefulWidget {
+  const Home({Key? key}) : super(key: key);
+
+  @override
+  _HomeState createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  String selectedStatus = 'All';
+  String selectedGender = 'All';
+  String selectedSort = 'Name';
+  String searchQuery = '';
+
+  List<Character> allCharacters = []; // Original list of characters
+  List<Character> filteredCharacters = []; // Filtered list of characters
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCharacters(); // Fetch character data
+  }
+
+  Future<void> fetchCharacters() async {
+    // Get the list of characters from your data source (e.g., API)
+    // Example:
+    List<Character> characters = await ApiServise().fetchAllCharacter();
+
+    setState(() {
+      allCharacters = characters; // Save the original list
+      filteredCharacters = characters; // Initialize the filtered list
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rick and Morty'),
+        centerTitle: true,
+        backgroundColor: Colors.blue,
+      ),
+      body: SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              colors: [Colors.blue, Colors.lightBlue],
+              radius: 1.2,
+              center: Alignment.center,
+              focal: Alignment.center,
+            ),
+          ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              _buildFilters(),
+              const SizedBox(height: 16),
+              _buildSearchField(),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListCharacter(
+                  characters: filteredCharacters,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildDropdownFilter(
+          label: 'Status',
+          value: selectedStatus,
+          items: ['All', 'Alive', 'Dead', 'Unknown'],
+          onChanged: (value) {
+            setState(() {
+              selectedStatus = value!;
+              applyFilters(); // Apply filters
+            });
+          },
+        ),
+        _buildDropdownFilter(
+          label: 'Gender',
+          value: selectedGender,
+          items: ['All', 'Male', 'Female', 'Genderless', 'Unknown'],
+          onChanged: (value) {
+            setState(() {
+              selectedGender = value!;
+              applyFilters(); // Apply filters
+            });
+          },
+        ),
+        _buildDropdownFilter(
+          label: 'Sort By',
+          value: selectedSort,
+          items: ['Name', 'Status', 'Gender'],
+          onChanged: (value) {
+            setState(() {
+              selectedSort = value!;
+              applyFilters(); // Apply filters
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  void applyFilters() {
+    List<Character> tempCharacters = allCharacters; // Copy the original list
+
+    // Filter by status
+    if (selectedStatus != 'All') {
+      tempCharacters = tempCharacters.where((character) => character.status == selectedStatus).toList();
+    }
+
+    // Filter by gender
+    if (selectedGender != 'All') {
+      tempCharacters = tempCharacters.where((character) => character.gender == selectedGender).toList();
+    }
+
+    // Search by name or other criteria
+    if (searchQuery.isNotEmpty) {
+      tempCharacters = tempCharacters.where((character) {
+        final name = character.name.toLowerCase();
+        final query = searchQuery.toLowerCase();
+        return name.contains(query);
+      }).toList();
+    }
+
+    // Sort
+    tempCharacters.sort((a, b) {
+      if (selectedSort == 'Name') {
+        return a.name.compareTo(b.name);
+      } else if (selectedSort == 'Status') {
+        return a.status.compareTo(b.status);
+      } else if (selectedSort == 'Gender') {
+        return a.gender.compareTo(b.gender);
+      }
+      return 0;
+    });
+
+    setState(() {
+      filteredCharacters = tempCharacters; // Update the filtered list
+    });
+  }
+
+  Widget _buildDropdownFilter({
+    required String label,
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?>? onChanged,
+  }) {
+    return DropdownButton<String>(
+      value: value,
+      items: items.map((item) {
+        return DropdownMenuItem<String>(
+          value: item,
+          child: Text(item),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      hint: Text(label),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+      ),
+      child: TextField(
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+            applyFilters(); // Apply filters
+          });
+        },
+        decoration: const InputDecoration(
+          labelText: 'Search',
+          prefixIcon: Icon(Icons.search, color: Colors.grey),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+}
+
+class ListCharacter extends StatelessWidget {
+  final List<Character> characters;
+
+  const ListCharacter({
+    Key? key,
+    required this.characters,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: characters.length,
+      itemBuilder: (context, index) {
+        return CardCharacter(character: characters[index]);
+      },
+    );
+  }
+}
+
+class CardCharacter extends StatefulWidget {
+  final Character character;
+
+  const CardCharacter({Key? key, required this.character}) : super(key: key);
+
+  @override
+  _CardCharacterState createState() => _CardCharacterState();
+}
+
+class _CardCharacterState extends State<CardCharacter> with SingleTickerProviderStateMixin {
+  bool isHovered = false;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late ImageProvider _imageProvider;
+  late ImageStream _imageStream;
+  bool _isImageLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _loadImage();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _loadImage() {
+    _imageProvider = NetworkImage(widget.character.image.toString());
+    final ImageStream stream = _imageProvider.resolve(const ImageConfiguration());
+    stream.addListener(ImageStreamListener(_handleImageLoaded));
+    _imageStream = stream;
+  }
+
+  void _handleImageLoaded(ImageInfo info, bool synchronousCall) {
+    if (mounted) {
+      setState(() {
+        _isImageLoaded = true;
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant CardCharacter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.character.image != oldWidget.character.image) {
+      _imageStream.removeListener(ImageStreamListener(_handleImageLoaded));
+      _isImageLoaded = false;
+      _loadImage();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: MouseRegion(
+        onEnter: (_) {
+          setState(() {
+            isHovered = true;
+          });
+          _animationController.forward();
+        },
+        onExit: (_) {
+          setState(() {
+            isHovered = false;
+          });
+          _animationController.reverse();
+        },
+        child: GestureDetector(
+          onTap: () {
+            _openCharacterDetails(); // Open new tab with detailed information
+          },
+          child: AnimatedBuilder(
+            animation: _scaleAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _scaleAnimation.value,
+                child: Stack(
+                  children: [
+                    ColorFiltered(
+                      colorFilter: isHovered && widget.character.status == 'Dead'
+                          ? const ColorFilter.matrix(<double>[
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0, 0, 0, 1, 0,
+                            ])
+                          : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.black,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            if (isHovered)
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Flexible(
+                              flex: 1,
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(10),
+                                  bottomLeft: Radius.circular(10),
+                                ),
+                                child: _isImageLoaded
+                                    ? Image(
+                                        image: _imageProvider,
+                                        fit: BoxFit.fitHeight,
+                                      )
+                                    : Container(), // Display a blank container while the image is loading
+                              ),
+                            ),
+                            Flexible(
+                              flex: 1,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 10),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Tooltip(
+                                      message: 'Click to view details',
+                                      child: Text(
+                                        widget.character.name.toString(),
+                                        style: GoogleFonts.acme(
+                                          color: isHovered ? Colors.white : Colors.black,
+                                          decoration: isHovered ? TextDecoration.none : TextDecoration.none,
+                                          decorationStyle: TextDecorationStyle.wavy,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Row(
+                                      children: [
+                                        _buildGenderIndicator(),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'Gender: ${widget.character.gender.toString()}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isHovered ? Colors.white : Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Status: ${widget.character.status.toString()}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isHovered ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Location: ${widget.character.location.toString()}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isHovered ? Colors.white : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        _openCharacterDetails(); // Open new tab with detailed information
+                                      },
+                                      child: const Text('Details'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderIndicator() {
+    final gender = widget.character.gender;
+    Color indicatorColor;
+    IconData indicatorIcon;
+
+    if (gender == 'Male') {
+      indicatorColor = Colors.blue;
+      indicatorIcon = Icons.male;
+    } else if (gender == 'Female') {
+      indicatorColor = Colors.pink;
+      indicatorIcon = Icons.female;
+    } else {
+      indicatorColor = Colors.grey;
+      indicatorIcon = Icons.transgender;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isHovered ? indicatorColor.withOpacity(0.8) : indicatorColor.withOpacity(0.6),
+      ),
+      child: Icon(
+        indicatorIcon,
+        color: Colors.white,
+        size: 16,
+      ),
+    );
+  }
+
+  void _openCharacterDetails() {
+    final character = widget.character;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CharacterDetailsPage(character: character, onAddToFavorites: (Character) {}, onRemoveFromFavorites: (Character character) {  },),
+      ),
+    );
+  }
+}
