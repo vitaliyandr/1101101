@@ -1,0 +1,58 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rick_and_morty/data/api/api_character.dart';
+import 'package:rick_and_morty/domain/character.dart';
+import 'package:rick_and_morty/presentation/widgets/card_character.dart';
+
+final userProvider = Provider<ApiServise>((ref) => ApiServise());
+
+final characterListProvider = FutureProvider<List<Character>>((ref) async {
+  return ref.watch(userProvider).fetchAllCharacter();
+});
+
+class ListCharacter extends ConsumerWidget {
+  final String searchQuery;
+  final String statusFilter;
+  final void Function(Character character) onCharacterSelected;
+  final List<Character> characters;
+
+  const ListCharacter({
+    Key? key,
+    required this.searchQuery,
+    required this.statusFilter,
+    required this.onCharacterSelected,
+    required this.characters,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final charactersDataList = ref.watch(characterListProvider);
+    return charactersDataList.when(
+      loading: () => const CircularProgressIndicator(),
+      error: (err, stack) => Text('Error: $err'),
+      data: (charactersDataList) {
+        List<Character> characters = charactersDataList.map((e) => e).toList();
+
+        // Фільтруйте та відображайте персонажів на основі searchQuery та statusFilter
+        final filteredCharacters = characters.where((character) {
+          final name = character.name.toLowerCase();
+          final status = character.status.toLowerCase();
+
+          final isNameMatch = name.contains(searchQuery.toLowerCase());
+          final isStatusMatch = statusFilter == 'All' || status == statusFilter.toLowerCase();
+
+          return isNameMatch && isStatusMatch;
+        }).toList();
+
+        return GridView.count(
+          crossAxisCount: 2,
+          childAspectRatio: (1.0 / 0.6),
+          shrinkWrap: true,
+          children: [
+            for (final person in filteredCharacters) CardCharacter(character: person),
+          ],
+        );
+      },
+    );
+  }
+}
