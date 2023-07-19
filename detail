@@ -1,0 +1,184 @@
+import 'package:flutter/material.dart';
+import 'package:rick_and_morty/domain/character.dart';
+
+class CharacterDetailsPage extends StatelessWidget {
+  final Character character;
+  final Function(Character) onAddToFavorites;
+
+  const CharacterDetailsPage({
+    Key? key,
+    required this.character,
+    required this.onAddToFavorites, required void Function(Character character) onRemoveFromFavorites,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(character.name),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.shade200,
+              Colors.blue.shade400,
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildAnimatedName(),
+              const SizedBox(height: 10),
+              _buildInfoRow('Status', character.status),
+              const SizedBox(height: 8),
+              _buildInfoRow('Gender', character.gender),
+              const SizedBox(height: 8),
+              _buildInfoRow('Location', character.location),
+              const SizedBox(height: 20),
+              const Text(
+                'Interesting Facts',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildFact('Fact 1: ${character.name} is a ${character.species}.'),
+              const SizedBox(height: 4),
+              _buildFact('Fact 2: ${character.name} has ${character.episodeCount} episodes.'),
+              const SizedBox(height: 4),
+              _buildFact('Fact 3: ${character.name} is known for ${character.specialAbility}.'),
+              const SizedBox(height: 4),
+              _buildFact('Fact 4: ${character.name} was last seen in ${character.lastLocation}.'),
+              const SizedBox(height: 20),
+              _buildAnimatedButton(
+                onPressed: () {
+                  onAddToFavorites(character); // Виклик функції для додавання персонажа до улюблених
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${character.name} added to favorites')),
+                  );
+                },
+                child: const Text('Add to Favorites'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimatedName() {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 800),
+      builder: (BuildContext context, double value, Widget? child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 20),
+            child: Text(
+              'Name: ${character.name}',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      children: [
+        Text(
+          '$label:',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, color: Colors.white),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFact(String fact) {
+    return Row(
+      children: [
+        const Icon(Icons.star, color: Colors.yellow),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            fact,
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnimatedButton({
+    required VoidCallback onPressed,
+    required Widget child,
+  }) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
+      builder: (BuildContext context, double value, Widget? child) {
+        return Transform.scale(
+          scale: 1 + 0.1 * value,
+          child: Opacity(
+            opacity: value,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              child: child,
+              style: ElevatedButton.styleFrom(
+                primary: Colors.orange,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 24,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+void _handleInteractButtonPressed(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Interact'),
+        content: const Text('You interacted with the character.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
