@@ -1,0 +1,27 @@
+class Character {
+  final String name;
+  final String status;
+  final String gender;
+  final String location;
+  final String image;
+
+  Character({
+    required this.name,
+    required this.status,
+    required this.gender,
+    required this.location,
+    required this.image,
+  });
+
+  String get facts => 'No facts available.';
+
+  get id => null;
+
+  get species => null;
+
+  get episodeCount => null;
+
+  get specialAbility => null;
+
+  get lastLocation => null;
+}
